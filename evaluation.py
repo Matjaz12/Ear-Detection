@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
@@ -66,8 +67,74 @@ def mean_intersection_over_union(images: npt.NDArray, ground_truths: npt.NDArray
     return mean_iou
 
 
-if __name__ == "__main__":
+def precision_recall_curve(images: npt.NDArray, ground_truths: npt.NDArray,
+                           predictions: npt.NDArray, iou_threshold: float = 0.5,
+                           figure_title: str = ""):
 
+    iou_vector = intersection_over_union_vector(images, ground_truths, predictions)
+    confidence_vector = np.expand_dims(predictions[:, 2], axis=1)
+
+    iou_conf_vector = np.concatenate(
+        (iou_vector, confidence_vector), axis=1
+    )
+
+    # drop the bounding box
+    iou_conf_vector = np.delete(iou_conf_vector, 1, axis=1)
+
+    # Sort by confidence
+    iou_conf_vector = iou_conf_vector[iou_conf_vector[:, -1].argsort()[::-1]]
+
+    # Use iou_threshold to determine FP or TP
+    tp_vector = np.expand_dims(iou_conf_vector[:, 1] >= iou_threshold, axis=1)
+    fp_vector = np.logical_not(tp_vector)
+
+    iou_conf_vector = np.concatenate(
+        (iou_conf_vector, tp_vector),
+        axis=1
+    )
+
+    iou_conf_vector = np.concatenate(
+        (iou_conf_vector, fp_vector),
+        axis=1
+    )
+
+    tp_csum_vector = np.expand_dims(np.cumsum(iou_conf_vector[:, -2]), axis=1)
+    fp_csum_vector = np.expand_dims(np.cumsum(iou_conf_vector[:, -1]), axis=1)
+
+    iou_conf_vector = np.concatenate(
+        (iou_conf_vector, tp_csum_vector),
+        axis=1
+    )
+
+    iou_conf_vector = np.concatenate(
+        (iou_conf_vector, fp_csum_vector),
+        axis=1
+    )
+
+    precision_vector = tp_csum_vector / (tp_csum_vector + fp_csum_vector)
+    recall_vector = tp_csum_vector / ground_truths.shape[0]
+
+    iou_conf_vector = np.concatenate(
+        (iou_conf_vector, precision_vector),
+        axis=1
+    )
+
+    iou_conf_vector = np.concatenate(
+        (iou_conf_vector, recall_vector),
+        axis=1
+    )
+
+    plt.style.use(['science','ieee', 'notebook', 'grid'])
+    plt.figure(figsize=(10, 10))
+    plt.plot(recall_vector.flatten(), precision_vector.flatten(), "-", color="purple")
+    plt.title(figure_title)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.savefig(f"./img/{figure_title}.png")
+    plt.show()
+
+
+if __name__ == "__main__":
     X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
 
     # Viola Jones
@@ -97,9 +164,10 @@ if __name__ == "__main__":
     print(f"mean_iou: {mean_iou}")
     """
 
-
     # YOLO
     yolo = YOLO("./weights/yolo5s.pt")
     predictions = yolo.predict(X_test)
     mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
     print(f"mean_iou: {mean_iou}")
+
+    precision_recall_curve(X_test, y_test, predictions, figure_title="yolo_pr_curve")

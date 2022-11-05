@@ -121,4 +121,4 @@ class TaskRunner:
 
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.VJ_FAILED_PREDICTIONS)
+    TaskRunner.run(Task.YOLO_MEAN_IOU)
