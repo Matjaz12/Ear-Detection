@@ -1,6 +1,10 @@
 import cv2
 import numpy as np
 import numpy.typing as npt
+from numba import njit
+
+from load_data import load_data_pickle
+from visualize import show_detection
 
 
 class ViolaJones:
@@ -14,75 +18,77 @@ class ViolaJones:
         self.max_size = max_size
 
     @staticmethod
-    def convert_prediction_coordinates(image: npt.NDArray, predicted: npt.NDArray):
+    def convert_detection(image_height: int, image_width: int, detection: npt.NDArray) -> npt.NDArray:
         """
-        Function converts the predicted bounding box in format which is used in the test samples.
-
-        predicted (x_hat, y_hat) are the coordinates of the upper-left most pixel.
-        predicted (width_hat, height_hat) are the width and the height of the predicted bounding box.
-
-        We perform the following two conversion:
-        1. Upper-left most pixel coordinates (x_hat, y_hat) are converted to the coordinates of the central pixel.
-        2. Values (x_hat, y_hat, width_hat, height_hat) are divided by the width and the height of the image.
-
-        @param image: Input image
-        @param predicted: List of predicted bounding boxes.
-        @return: List of predicted bounding boxes with corrected coordinates
-
-        @param image: Input image
-        @param result: List of predictions
-        @return: List of predictions with corrected coordinates
+        Convert detection by cv2 viola jones algorithm
+        @param image_height: height of the input image
+        @param image_width: width of the input image
+        @param detection: Detection returned by cv2 viola jones algorithm,
+            [x_up, y_up, box_width, box_height]
+        @return:
+            Detection in the following format
+            [x_center, y_center, box_width, box_height]
         """
+        x_up, y_up, box_width, box_height = detection
 
-        predicted_bounding_boxes_corrected = []
+        x_center = x_up + box_width // 2
+        y_center = y_up + box_height // 2
+        x_center /= image_width
+        y_center /= image_height
+        box_width /= image_width
+        box_height /= image_height
 
-        image_width = len(image[0])
-        image_height = len(image)
+        converted_detection = np.array([x_center, y_center, box_width, box_height])
+        return converted_detection
 
-        for (x_hat, y_hat, width_hat, height_hat, confidence) in predicted:
-            # 1. Upper-left most pixel coordinates (x_hat, y_hat) are converted to the coordinates of the central pixel.
-            x_hat = x_hat + width_hat // 2
-            y_hat = y_hat + height_hat // 2
-
-            # Values (x_hat, y_hat, width_hat, height_hat) are divided by the width and the height of the image.
-            x_hat = x_hat / image_width
-            y_hat = y_hat / image_height
-            width_hat = width_hat / image_width
-            height_hat = height_hat / image_height
-
-            predicted_bounding_boxes_corrected.append([x_hat, y_hat, width_hat, height_hat, confidence])
-
-        predicted_bounding_boxes_corrected = np.array(predicted_bounding_boxes_corrected)
-
-        return predicted_bounding_boxes_corrected
-
-    def predict(self, image: npt.NDArray, convert_coords: bool = True) -> npt.NDArray:
+    def predict(self, images: npt.NDArray, convert_coordinates: bool = True) -> npt.NDArray:
         """
         Function predicts the bounding boxes.
-        @param image: Input image
-        @param convert_coords: Convert predicted coordinates or not.
-        @return: List of predicted bounding boxes
+        @param images: Input images
+        @param convert_coordinates: Convert predicted coordinates or not.
+        @return: List of predictions:
+            [[sample_idx, predicted_class, predicted_prob, bounding_box], ...]
         """
 
-        predicted_bounding_boxes = self.cascade.detectMultiScale(image, scaleFactor=self.scale_factor,
-                                                                 minNeighbors=self.min_neighbour,
-                                                                 minSize=self.min_size,
-                                                                 maxSize=self.max_size)
-        # Add confidence to predictions
-        if self.min_neighbour:
-            # todo: here i normalize with 10, i just assumed that 10 is the max value, decide how to handle this !
-            confidence = self.min_neighbour / 10
-        else:
-            confidence = -1.0
+        # Compute detections for all images
+        predictions = []
+        for sample_idx, image in enumerate(images):
+            detections = self.cascade.detectMultiScale(image, scaleFactor=self.scale_factor,
+                                                       minNeighbors=self.min_neighbour, minSize=self.min_size,
+                                                       maxSize=self.max_size)
 
-        predicted_bounding_boxes = np.concatenate(
-            [predicted_bounding_boxes, np.full((predicted_bounding_boxes.shape[0], 1), confidence)], axis=1
-        )
+            # Iterate over detections and construct prediction vector
+            for detection in detections:
+                predicted_class = 0
+                predicted_prob = self.min_neighbour if self.min_neighbour is not None else -1.0
+                prediction = [sample_idx, predicted_class, predicted_prob]
 
-        if convert_coords:
-            predicted_bounding_boxes = ViolaJones.convert_prediction_coordinates(image, predicted_bounding_boxes)
+                if convert_coordinates:
+                    image_height, image_width = image.shape
+                    detection = ViolaJones.convert_detection(image_height, image_width, detection)
 
-        return predicted_bounding_boxes
+                prediction.extend(detection)
+
+                # Store prediction
+                predictions.append(prediction)
+
+        predictions = np.array(predictions)
+        return predictions
 
     def __str__(self):
         return "ViolaJones"
+
+
+if __name__ == "__main__":
+    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
+    viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml",
+                             min_neighbour=3)
+    predictions = viola_jones.predict(X_test)
+
+    # Show ground truth and prediction for a random sample.
+    index_to_show = int(np.random.choice(predictions[:, 0]))
+    pred = predictions[np.where(predictions[:, 0] == index_to_show)]
+    show_detection(X_test[index_to_show],
+                   y_test[index_to_show],
+                   pred,
+                   figure_name=str(viola_jones))

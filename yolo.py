@@ -2,69 +2,91 @@ import torch
 import numpy.typing as npt
 import numpy as np
 
+from load_data import load_data_pickle
+from visualize import show_detection
+
 
 class YOLO:
     def __init__(self, weights_path: str):
         self.model = torch.hub.load("ultralytics/yolov5", 'custom', path=weights_path)
 
     @staticmethod
-    def convert_prediction_coordinates(image: npt.NDArray, predicted: npt.NDArray):
+    def convert_detection(image_height: int, image_width: int, detection: npt.NDArray) -> npt.NDArray:
         """
-        Function converts the predicted bounding box in format which is used in the test samples.
-
-        predicted (x_min, y_min) are the coordinates of the upper-left most pixel.
-        predicted (x_max, y_max) are the coordinates of the lower-right most pixel.
-
-        We perform the following two conversion:
-        1. Upper-left most pixel coordinates (x_min, y_min) are converted to the coordinates of the central pixel.
-        2. We compute (width_hat, height_hat) using (x_min, y_min) and (x_max, y_max)
-        3. Values (x_hat, y_hat, width_hat, height_hat) are divided by the width and the height of the image.
-
-        @param image: Input image
-        @param predicted: List of predictions
-        @return: List of predictions with corrected coordinates
+        Convert detection returned by YOLO algorithm
+        @param image_height: height of the input image
+        @param image_width: width of the input image
+        @param detection: Detection returned by YOLO algorithm,
+            [x_min, y_min, x_max, y_max]
+        @return:
+            Detection in the following format:
+            [x_center, y_center, box_width, box_height]
         """
 
-        corrected_result = []
+        x_min, y_min, x_max, y_max = detection
 
-        image_width = len(image[0])
-        image_height = len(image)
+        box_width = np.abs(x_max - x_min)
+        box_height = np.abs(y_max - y_min)
+        x_center = x_min + box_width // 2
+        y_center = y_min + box_height // 2
 
-        for x_min, y_min, x_max, y_max, confidence, predicted_class in predicted:
-            width_hat = np.abs(x_max - x_min)
-            height_hat = np.abs(y_max - y_min)
+        x_center = x_center / image_width
+        y_center = y_center / image_height
+        box_width = box_width / image_width
+        box_height = box_height / image_height
 
-            x_hat = x_min + width_hat // 2
-            y_hat = y_min + height_hat // 2
+        converted_detection = np.array([x_center, y_center, box_width, box_height])
+        return converted_detection
 
-            # Values (x_hat, y_hat, width_hat, height_hat) are divided by the width and the height of the image.
-            x_hat = x_hat / image_width
-            y_hat = y_hat / image_height
-            width_hat = width_hat / image_width
-            height_hat = height_hat / image_height
-
-            corrected_result.append([x_hat, y_hat, width_hat, height_hat, confidence])
-
-        corrected_result = np.array(corrected_result)
-        return corrected_result
-
-    def predict(self, image: npt.NDArray, convert_coords: bool = True) -> npt.NDArray:
+    def predict(self, images: npt.NDArray, convert_coordinates: bool = True) -> npt.NDArray:
         """
         Function predicts the bounding boxes.
-        @param image: Input image
-        @param convert_coords: Convert predicted coordinates or not.
-        @return: List of predictions
+        @param images: Input images
+        @param convert_coordinates: Convert predicted coordinates or not.
+        @return: List of predictions:
+            [[sample_idx, predicted_class, predicted_prob, bounding_box], ...]
         """
 
-        # Make a prediction
-        result = self.model(image)
-        result = np.array(result.xyxy[0].tolist())
+        # Compute detections for all images
+        predictions = []
+        for sample_idx, image in enumerate(images):
+            result = self.model(image)
+            detections = np.array(result.xyxy[0].tolist())
 
-        if convert_coords:
-            result = YOLO.convert_prediction_coordinates(image, result)
+            # Iterate over detections and construct prediction vector
+            # detections = [[x_min, y_min, x_max, y_max, confidence, predicted_class], ...]
+            for detection in detections:
+                predicted_class = detection[-1]
+                predicted_prob = detection[-2]
+                prediction = [sample_idx, predicted_class, predicted_prob]
+                detection = detection[0:4]
 
-        return result
+                if convert_coordinates:
+                    image_height, image_width = image.shape
+                    detection = YOLO.convert_detection(image_height, image_width, detection)
+
+                prediction.extend(detection)
+
+                # Store prediction
+                predictions.append(prediction)
+
+        predictions = np.array(predictions)
+        return predictions
 
     def __str__(self):
         return "YOLO"
 
+
+if __name__ == "__main__":
+    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
+    yolo = YOLO("./weights/yolo5s.pt")
+
+    predictions = yolo.predict(X_test)
+
+    # Show ground truth and prediction for a random sample.
+    index_to_show = int(np.random.choice(predictions[:, 0]))
+    pred = predictions[np.where(predictions[:, 0] == index_to_show)]
+    show_detection(X_test[index_to_show],
+                   y_test[index_to_show],
+                   pred,
+                   figure_name=str(yolo))

@@ -12,13 +12,17 @@ from matplotlib.patches import Rectangle
 def load_data(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
     """
     Function loads data and returns tensors X, y.
+
+    X is of shape (num samples, )
+    y is of shape (num samples, 6)
+
     @param data_path: Path to data.
     @return: X (samples) and y (labels).
     """
     X, y = [], []
     data = {}
 
-    # Store labels
+    # Store images
     for filename in sorted(os.listdir(data_path)):
         if filename.endswith(".png"):
             image_data = Image.open(data_path + "/" + filename).convert("L")
@@ -27,15 +31,33 @@ def load_data(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
             sample_id = filename.split(".")[0]
             data[sample_id] = [image]
 
-    # Store data samples
+    # Store labels
+    sample_idx = 0
     for filename in sorted(os.listdir(data_path)):
         if filename.endswith(".txt"):
             sample_id = filename.split(".")[0]
 
             with open(data_path + "/" + filename, "r", encoding="utf-8") as file:
+                # Fetch sample data
                 line = file.readline()
-                bounding_box = [float(val) for val in line.split(" ")][1:]
-                data[sample_id].append(bounding_box)
+                sample_data = [float(val) for val in line.split(" ")]
+
+                # Parse sample data
+                true_class = sample_data[0]
+                prob = 1
+                bounding_box = sample_data[1:]
+
+                # Construct sample label
+                """
+                sample_label = [sample_idx, true_class, prob, x_center, y_center, w, h]
+                """
+                sample_label = [sample_idx, true_class, prob]
+                sample_label.extend(bounding_box)
+
+                # Store sample label
+                data[sample_id].append(np.array(sample_label))
+
+            sample_idx += 1
 
     for image, bounding_box in data.values():
         X.append(image)
@@ -55,6 +77,10 @@ def load_data_pickle(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
     """
     with open(data_path, 'rb') as handle:
         X_test, y_test = pickle.load(handle)
+
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
+
     return X_test, y_test
 
 
@@ -67,3 +93,12 @@ def save_data_pickle(data_path, X: npt.NDArray, y: npt.NDArray) -> None:
     """
     with open(data_path, "wb") as handle:
         pickle.dump((X, y), handle)
+
+
+if __name__ == "__main__":
+    # X_test, y_test = load_data(data_path="./ear_data/test")
+    # save_data_pickle("./ear_data/X_test_and_y_test.pickle", X_test, y_test)
+    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
+    print(f"X_test.shape: {X_test.shape}")
+    print(f"y_test.shape: {y_test.shape}")
+    print(f"sample_idx: {y_test[0][0]}, true_class: {y_test[0][1]}, prob: {y_test[0][2]}, bounding_box: {y_test[0][3:]}")
