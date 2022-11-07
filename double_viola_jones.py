@@ -58,12 +58,12 @@ class DoubleViolaJones:
 
             # Apply cascade 1
             detections1 = self.cascade1.detectMultiScale(image, scaleFactor=self.scale_factor,
-                                                        minNeighbors=self.min_neighbour, minSize=self.min_size,
-                                                        maxSize=self.max_size)
+                                                         minNeighbors=self.min_neighbour, minSize=self.min_size,
+                                                         maxSize=self.max_size)
             # Apply cascade 2
             detections2 = self.cascade2.detectMultiScale(image, scaleFactor=self.scale_factor,
-                                                        minNeighbors=self.min_neighbour, minSize=self.min_size,
-                                                        maxSize=self.max_size)
+                                                         minNeighbors=self.min_neighbour, minSize=self.min_size,
+                                                         maxSize=self.max_size)
 
             if len(detections1) > 0 and len(detections2) > 0:
                 detections = np.concatenate(

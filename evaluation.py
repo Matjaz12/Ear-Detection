@@ -10,7 +10,16 @@ from yolo import YOLO
 
 def intersection_over_union(ground_truth: npt.NDArray, prediction: npt.NDArray,
                             image_height: int, image_width: int) -> float:
-    # https://www.google.com/search?channel=fs&client=ubuntu&q=python+interesection+over+union#fpstate=ive&vld=cid:fe6ebfe5,vid:XXYG5ZWtjj0
+    """
+    Function computes intersection over union given ground truth annotation
+    and a prediction.
+
+    @param ground_truth: Ground truth.
+    @param prediction: Predicted bounding box.
+    @param image_height: Height of the image.
+    @param image_width: Width of the image.
+    @return: intersection over union for the given prediction.
+    """
 
     sample_idx, true_class, true_prob, x_center, y_center, box_width, box_height = ground_truth
     x_center *= image_width
@@ -46,6 +55,17 @@ def intersection_over_union(ground_truth: npt.NDArray, prediction: npt.NDArray,
 
 def intersection_over_union_vector(images: npt.NDArray, ground_truths: npt.NDArray,
                                    predictions: npt.NDArray) -> npt.NDArray:
+    """
+    Function computes intersection over union for a set of provided
+    predictions.
+
+    @param images: Images on which predictions were made.
+    @param ground_truths: Ground truth annotations for each image.
+    @param predictions: A set of predictions.
+    @return: Vector containing each prediction and its corresponding
+        intersection over union.
+        [sample_idx, prediction, iou]
+    """
     predictions_iou_s = []
 
     for prediction in predictions:
@@ -61,15 +81,34 @@ def intersection_over_union_vector(images: npt.NDArray, ground_truths: npt.NDArr
 
 def mean_intersection_over_union(images: npt.NDArray, ground_truths: npt.NDArray,
                                  predictions: npt.NDArray) -> float:
+    """
+    Function computes the mean intersection over union (mIoU).
+
+    @param images: Images on which predictions were made.
+    @param ground_truths: Ground truth annotations for each image.
+    @param predictions: A set of predictions.
+    @return: mean intersection over union.
+    """
     predictions_iou_s = intersection_over_union_vector(images, ground_truths, predictions)
     mean_iou = np.sum(predictions_iou_s[:, 2]) / predictions_iou_s.shape[0]
 
     return mean_iou
 
 
-def precision_recall_curve(images: npt.NDArray, ground_truths: npt.NDArray,
-                           predictions: npt.NDArray, iou_threshold: float = 0.5,
-                           figure_title: str = ""):
+def precision_recall_curve_1(images: npt.NDArray, ground_truths: npt.NDArray,
+                             predictions: npt.NDArray, iou_threshold: float = 0.5,
+                             figure_title: str = "") -> None:
+    """
+    Function plots the precision-recall curve for a specified threshold
+    `iou_threshold`. It utilizes the confidence score associated with each
+    prediction returned by detection models (e.g YOLO).
+
+    @param images: Images on which predictions were made.
+    @param ground_truths: Ground truth annotations for each image.
+    @param predictions: A set of predictions.
+    @param iou_threshold: Threshold used to classify a prediction as a TP or FP.
+    @param figure_title: Title of the figure / plot.
+    """
 
     iou_vector = intersection_over_union_vector(images, ground_truths, predictions)
     confidence_vector = np.expand_dims(predictions[:, 2], axis=1)
@@ -130,7 +169,51 @@ def precision_recall_curve(images: npt.NDArray, ground_truths: npt.NDArray,
     plt.title(figure_title)
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.savefig(f"./img/{figure_title}.png")
+    plt.savefig(f"./results/{figure_title}.png")
+    plt.show()
+
+
+def precision_recall_curve_2(images: npt.NDArray, ground_truths: npt.NDArray,
+                             predictions: npt.NDArray, iou_threshold_step: float = 0.01,
+                             figure_title: str = "") -> None:
+    """
+    Function plots the precision-recall curve for each threshold in range
+    0.0 to 1.0 using step size of `iou_threshold_step`.
+
+    @param images: Images on which predictions were made.
+    @param ground_truths: Ground truth annotations for each image.
+    @param predictions: A set of predictions.
+    @param iou_threshold_step: Delta between two consecutive threshold values.
+    @param figure_title: Title of the figure / plot.
+    """
+
+    recall_vector, precision_vector = [], []
+
+    iou_vector = intersection_over_union_vector(images, ground_truths, predictions)[:, -1]
+
+    for iou_threshold in np.arange(0.0, 0.8, iou_threshold_step):
+        # iou_threshold = 1 - iou_threshold
+
+        num_tps = np.sum(iou_vector >= iou_threshold)
+        num_fp = np.sum(iou_vector < iou_threshold)
+
+        precision = num_tps / (num_tps + num_fp + 1e-8)
+        recall = num_tps / ground_truths.shape[0]
+
+        precision_vector.append(precision)
+        recall_vector.append(recall)
+
+    precision_vector = np.array(precision_vector)
+    recall_vector = np.array(recall_vector)
+
+    plt.style.use(['science', 'ieee', 'notebook', 'grid'])
+    plt.figure(figsize=(10, 10))
+    # np.ones(len(precision_vector))
+    plt.plot(recall_vector, precision_vector, "-", color="purple")
+    plt.title(figure_title)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.savefig(f"./results/{figure_title}.png")
     plt.show()
 
 
@@ -165,9 +248,18 @@ if __name__ == "__main__":
     """
 
     # YOLO
+    """
     yolo = YOLO("./weights/yolo5s.pt")
     predictions = yolo.predict(X_test)
     mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
     print(f"mean_iou: {mean_iou}")
 
-    precision_recall_curve(X_test, y_test, predictions, figure_title="yolo_pr_curve")
+    precision_recall_curve_1(X_test, y_test, predictions, figure_title="yolo_pr_curve")
+    """
+
+    yolo = YOLO("./weights/yolo5s.pt")
+    predictions = yolo.predict(X_test)
+    mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
+    print(f"mean_iou: {mean_iou}")
+
+    precision_recall_curve_2(X_test, y_test, predictions, figure_title="yolo_pr_curve_method_2")

@@ -8,7 +8,8 @@ import pandas as pd
 from tqdm import tqdm
 
 from double_viola_jones import DoubleViolaJones
-from evaluation import intersection_over_union, mean_intersection_over_union, intersection_over_union_vector
+from evaluation import intersection_over_union, mean_intersection_over_union, intersection_over_union_vector, \
+    precision_recall_curve_2
 from load_data import *
 import matplotlib.pyplot as plt
 from visualize import show_detection, plot_selected_samples
@@ -28,6 +29,7 @@ class Task(Enum):
     YOLO_SHOW_BEST_PREDICTIONS = 7
     VJ_FAILED_PREDICTIONS = 8
     VJ_DOUBLE_FINE_TUNE = 9
+    PR_CURVE = 10
 
 
 class RunBuilder:
@@ -75,7 +77,6 @@ class TaskRunner:
             predictions = viola_jones.predict(X_test)
             mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
             print(f"mean_iou: {mean_iou}")
-
 
         elif task == Task.VJ_SHOW_RANDOM_PREDICTION:
             # Show ground truth and prediction for a random sample.
@@ -229,6 +230,13 @@ class TaskRunner:
 
             run_data_df.to_csv(f"./results/{viola_jones}_run_{str(run_time).replace(' ', '_')}", index=False)
 
+        elif task == Task.PR_CURVE:
+            # viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
+            viola_jones = ViolaJones("./weights/haarcascade_mcs_leftear.xml")
+
+            predictions = viola_jones.predict(X_test)
+            precision_recall_curve_2(X_test, y_test, predictions, figure_title="vj_pr_curve")
+
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.VJ_DOUBLE_FINE_TUNE)
+    TaskRunner.run(Task.PR_CURVE)
