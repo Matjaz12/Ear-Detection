@@ -171,11 +171,6 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
     iou_vector = intersection_over_union_vector(images, ground_truths, predictions)
     confidence_vector = np.expand_dims(predictions[:, 2], axis=1)
 
-    """
-    plt.hist(Counter(predictions[:, 2]))
-    plt.title("Confidence histogram")
-    plt.plot()
-    """
 
     iou_conf_vector = np.concatenate(
         (iou_vector, confidence_vector), axis=1
@@ -186,6 +181,19 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
 
     # Sort by confidence
     iou_conf_vector = iou_conf_vector[iou_conf_vector[:, -1].argsort()[::-1]]
+
+    """
+    from scipy.stats import pearsonr
+    corr, _ = pearsonr(iou_conf_vector[:, 1], iou_conf_vector[:, 2] / np.max(iou_conf_vector[:, 2]))
+    plt.style.use(['science','ieee', 'notebook', 'grid'])
+    plt.figure(figsize=(15, 15))
+    plt.scatter(x=iou_conf_vector[:, 1], y=iou_conf_vector[:, 2] / np.max(iou_conf_vector[:, 2]))
+    plt.xlabel("IoU")
+    plt.ylabel("Confidence")
+    plt.title(f"IoU vs Confidence plot, correlation: {np.round(corr, 2)}")
+    plt.savefig("./img/test")
+    plt.show()
+    """
 
     # Use iou_threshold to determine FP or TP
     tp_vector = np.expand_dims(iou_conf_vector[:, 1] >= iou_threshold, axis=1)
@@ -321,19 +329,18 @@ def mean_accuracy_precision(images: npt.NDArray, ground_truths: npt.NDArray,
 if __name__ == "__main__":
     X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
 
-    viola_jones = DoubleViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                           "./weights/haarcascade_mcs_leftear.xml")
+    viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
     predictions = viola_jones.predict(X_test)
 
-    recall, precision = precision_recall_curve_all_thresholds(X_test, y_test, predictions)
+    recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions)
     plot_precision_recall_curve(recall, precision)
-
+    
     """
     yolo = YOLO("./weights/yolo5s.pt")
     predictions = yolo.predict(X_test)
     mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
     print(f"mean_iou: {mean_iou}")
 
-    recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions, figure_title="yolo_pr_curve")
+    recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions)
     plot_precision_recall_curve(recall, precision, figure_title="test_yolo_pr_curve")
     """
