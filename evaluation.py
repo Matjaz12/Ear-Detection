@@ -6,8 +6,10 @@ import numpy.typing as npt
 
 from load_data import load_data_pickle
 from viola_jones import ViolaJones
+from double_viola_jones import DoubleViolaJones
 from visualize import show_detection
 from yolo import YOLO
+from collections import Counter
 
 
 def intersection_over_union(ground_truth: npt.NDArray, prediction: npt.NDArray,
@@ -145,13 +147,13 @@ def plot_precision_recall_curves(recall_vectors: npt.NDArray, precision_vectors:
         plt.ylabel("Precision")
 
 
-    plt.legend(loc="upper left")
+    plt.legend(loc="bottom right")
     if figure_title != "":
         plt.savefig(f"./results/{figure_title}.png")
 
+
 def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: npt.NDArray,
-                             predictions: npt.NDArray, iou_threshold: float = 0.5,
-                             figure_title: str = "") -> Tuple[npt.NDArray, npt.NDArray]:
+                            predictions: npt.NDArray, iou_threshold: float = 0.5) -> Tuple[npt.NDArray, npt.NDArray]:
     """
     Function computes the precision-recall curve for a specified threshold
     `iou_threshold`. 
@@ -168,6 +170,12 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
 
     iou_vector = intersection_over_union_vector(images, ground_truths, predictions)
     confidence_vector = np.expand_dims(predictions[:, 2], axis=1)
+
+    """
+    plt.hist(Counter(predictions[:, 2]))
+    plt.title("Confidence histogram")
+    plt.plot()
+    """
 
     iou_conf_vector = np.concatenate(
         (iou_vector, confidence_vector), axis=1
@@ -310,10 +318,17 @@ def mean_accuracy_precision(images: npt.NDArray, ground_truths: npt.NDArray,
     return mAP
 
 
-
 if __name__ == "__main__":
-    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
+    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
 
+    viola_jones = DoubleViolaJones("./weights/haarcascade_mcs_rightear.xml",
+                                           "./weights/haarcascade_mcs_leftear.xml")
+    predictions = viola_jones.predict(X_test)
+
+    recall, precision = precision_recall_curve_all_thresholds(X_test, y_test, predictions)
+    plot_precision_recall_curve(recall, precision)
+
+    """
     yolo = YOLO("./weights/yolo5s.pt")
     predictions = yolo.predict(X_test)
     mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
@@ -321,3 +336,4 @@ if __name__ == "__main__":
 
     recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions, figure_title="yolo_pr_curve")
     plot_precision_recall_curve(recall, precision, figure_title="test_yolo_pr_curve")
+    """

@@ -74,11 +74,11 @@ class DoubleViolaJones:
         for sample_idx, image in enumerate(images):
 
             # Apply cascade 1
-            detections1 = self.cascade1.detectMultiScale(image, scaleFactor=self.scale_factor,
+            detections1, num_detections1 = self.cascade1.detectMultiScale2(image, scaleFactor=self.scale_factor,
                                                          minNeighbors=self.min_neighbour, minSize=self.min_size,
                                                          maxSize=self.max_size)
             # Apply cascade 2
-            detections2 = self.cascade2.detectMultiScale(image, scaleFactor=self.scale_factor,
+            detections2, num_detections2 = self.cascade2.detectMultiScale2(image, scaleFactor=self.scale_factor,
                                                          minNeighbors=self.min_neighbour, minSize=self.min_size,
                                                          maxSize=self.max_size)
 
@@ -88,17 +88,22 @@ class DoubleViolaJones:
                     axis=0
                 )
 
+                num_detections = np.concatenate(
+                    (num_detections1, num_detections2)
+                )
+
             elif len(detections1) > 0:
                 detections = detections1
+                num_detections = num_detections1
 
             else:
                 detections = detections2
+                num_detections = num_detections2
 
             # Iterate over detections and construct prediction vector
-            for detection in detections:
+            for detection, confidence in zip(detections, num_detections):
                 predicted_class = 0
-                predicted_prob = self.min_neighbour if self.min_neighbour is not None else -1.0
-                prediction = [sample_idx, predicted_class, predicted_prob]
+                prediction = [sample_idx, predicted_class, confidence]
 
                 if convert_coordinates:
                     image_height, image_width = image.shape

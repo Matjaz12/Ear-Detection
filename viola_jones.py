@@ -68,15 +68,14 @@ class ViolaJones:
         # Compute detections for all images
         predictions = []
         for sample_idx, image in enumerate(images):
-            detections = self.cascade.detectMultiScale(image, scaleFactor=self.scale_factor,
+            detections, num_detections = self.cascade.detectMultiScale2(image, scaleFactor=self.scale_factor,
                                                        minNeighbors=self.min_neighbour, minSize=self.min_size,
                                                        maxSize=self.max_size)
 
             # Iterate over detections and construct prediction vector
-            for detection in detections:
+            for detection, confidence in zip(detections, num_detections):
                 predicted_class = 0
-                predicted_prob = self.min_neighbour if self.min_neighbour is not None else -1.0
-                prediction = [sample_idx, predicted_class, predicted_prob]
+                prediction = [sample_idx, predicted_class, confidence]
 
                 if convert_coordinates:
                     image_height, image_width = image.shape[0], image.shape[1]

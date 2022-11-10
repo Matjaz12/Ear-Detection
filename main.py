@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from double_viola_jones import DoubleViolaJones
 from evaluation import intersection_over_union, mean_intersection_over_union, intersection_over_union_vector, \
-    precision_recall_curve_all_thresholds, plot_precision_recall_curve, plot_precision_recall_curves
+    precision_recall_curve_all_thresholds, plot_precision_recall_curve, plot_precision_recall_curves, precision_recall_curve_fixed_threshold, mean_accuracy_precision
 from load_data import *
 import matplotlib.pyplot as plt
 from visualize import show_detection, plot_selected_samples
@@ -30,6 +30,7 @@ class Task(Enum):
     VJ_FAILED_PREDICTIONS = 8
     VJ_DOUBLE_FINE_TUNE = 9
     PR_CURVE = 10
+    MAP_TABLE = 11
 
 
 class RunBuilder:
@@ -53,11 +54,12 @@ class RunBuilder:
 class TaskRunner:
     @staticmethod
     def run(task: Task) -> None:
+        IMAGE_MODE = "GRAY"
         LEFT_CASCADE = "./weights/haarcascade_mcs_rightear.xml"
         RIGHT_CASCADE = "./weights/haarcascade_mcs_leftear.xml"
         YOLO_WEIGHTS = "./weights/yolo5s.pt"
 
-        X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
+        X_test, y_test = load_data_pickle(f"./ear_data/X_test_and_y_test_{IMAGE_MODE}.pickle")
 
         if task == Task.VJ_MEAN_IOU:
             # viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
@@ -165,17 +167,9 @@ class TaskRunner:
                                   figure_name="vj_worst6_predictions")
 
         elif task == Task.VJ_FINE_TUNE:
-            """
             hyper_parameters = OrderedDict(
                 scale_factor=[1.05, 1.1, 1.2, 1.3],
                 min_neighbors=[3, 4, 5, 6, 7],
-            )
-            """
-
-            hyper_parameters = OrderedDict(
-                scale_factor=[1.2],
-                min_neighbors=[3],
-                min_size=[(70, 70)]
             )
 
             run_data = []
@@ -250,7 +244,8 @@ class TaskRunner:
         elif task == Task.PR_CURVE:
             hyper_parameters=OrderedDict(
                 model=[ViolaJones(LEFT_CASCADE), ViolaJones(RIGHT_CASCADE), 
-                DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)]
+                DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
+                iou_threshold=[0.5]
             )
 
             r_vects, p_vects, labels = [], [], []
@@ -259,7 +254,8 @@ class TaskRunner:
             print(f"Plotting {len(run_params)} PR curves...")
             for param_set in run_params:
                 predictions = param_set.model.predict(X_test)
-                r_vect, p_vect = precision_recall_curve_all_thresholds(X_test, y_test, predictions)
+                r_vect, p_vect = precision_recall_curve_fixed_threshold(X_test, y_test, 
+                                                                        predictions, param_set.iou_threshold)
                 
                 r_vects.append(r_vect)
                 p_vects.append(p_vect)
@@ -269,6 +265,39 @@ class TaskRunner:
             plot_precision_recall_curves(r_vects, p_vects, 
                                         labels, figure_title="pr_curve")
 
+        elif task == Task.MAP_TABLE:
+            """
+            Coco: AP@[0.5:0.05:0.95]
+            """
+
+            hyper_parameters=OrderedDict(
+                model=[ViolaJones(LEFT_CASCADE), ViolaJones(RIGHT_CASCADE), 
+                DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
+                iou_threshold=[0.5]
+            )
+
+            
+            results = []
+            mAPs, labels = [], []
+            run_params = RunBuilder.get_runs(hyper_parameters)
+
+            for param_set in run_params:
+                predictions = param_set.model.predict(X_test)
+                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.5,
+                                        iou_threshold_step=0.05, iou_threshold_stop=0.95)
+
+                result = OrderedDict()
+                result["mAP"] = mAP
+                result["model"] = str(param_set.model)
+
+                mAPs.append(mAP)    
+                results.append(result)
+
+            results_df = pd.DataFrame.from_dict(results, orient="columns")
+            results_df = results_df.sort_values("mAP", ascending=False)
+
+            print(results_df)
+            results_df.to_csv(f"./results/mAP_table", index=False)
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.PR_CURVE)
+    TaskRunner.run(Task.MAP_TABLE)
