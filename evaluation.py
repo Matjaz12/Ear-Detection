@@ -147,7 +147,7 @@ def plot_precision_recall_curves(recall_vectors: npt.NDArray, precision_vectors:
         plt.ylabel("Precision")
 
 
-    plt.legend(loc="bottom right")
+    plt.legend(loc="lower right")
     if figure_title != "":
         plt.savefig(f"./results/{figure_title}.png")
 

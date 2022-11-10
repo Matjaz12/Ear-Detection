@@ -90,12 +90,14 @@ class ViolaJones:
         return predictions
 
     def __str__(self):
+        """
         scale_factor = "sf=/" if not self.scale_factor else f"sf={self.scale_factor}"
         min_neighbour = "mn=/" if not self.min_neighbour else f"mn={self.min_neighbour}"
         min_size = "ms=/" if not not self.min_size else f"ms={self.min_size}"
         model_name = "VJ" + "_" + str(self.cascade_name) + "_" \
             + scale_factor + "_" + min_neighbour + "_" + min_size
-
+        """
+        model_name = "VJ" + str(self.cascade_name)
         return model_name
 
 

@@ -31,6 +31,7 @@ class Task(Enum):
     VJ_DOUBLE_FINE_TUNE = 9
     PR_CURVE = 10
     MAP_TABLE = 11
+    MAP_TABLE_HYPER_PARAMS = 12
 
 
 class RunBuilder:
@@ -169,7 +170,8 @@ class TaskRunner:
         elif task == Task.VJ_FINE_TUNE:
             hyper_parameters = OrderedDict(
                 scale_factor=[1.05, 1.1, 1.2, 1.3],
-                min_neighbors=[3, 4, 5, 6, 7],
+                min_neighbors=[1, 2, 3, 4, 5, 6, 7],
+                min_size=[None]
             )
 
             run_data = []
@@ -180,14 +182,19 @@ class TaskRunner:
             print(f"Running {len(run_params)} experiments...")
 
             for param_set in tqdm(run_params):
-                viola_jones = ViolaJones(cascade_path="./weights/haarcascade_mcs_rightear.xml",
+                viola_jones = ViolaJones(cascade_path=RIGHT_CASCADE,
                                          scale_factor=param_set.scale_factor,
                                          min_neighbour=param_set.min_neighbors,
                                          min_size=param_set.min_size)
 
                 predictions = viola_jones.predict(X_test)
                 mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
+
+                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.5,
+                        iou_threshold_step=0.05, iou_threshold_stop=0.95)
+
                 print(f"mean_iou: {mean_iou}")
+                print(f"mAP: {mAP}")
 
                 results = OrderedDict()
                 results["method"] = str(viola_jones)
@@ -195,11 +202,12 @@ class TaskRunner:
                 results["min_neighbors"] = param_set.min_neighbors
                 results["min_size"] = param_set.min_size
                 results["mean_iou"] = mean_iou
+                results["mAP"] = mAP
 
                 run_data.append(results)
 
             run_data_df = pd.DataFrame.from_dict(run_data, orient="columns")
-            run_data_df = run_data_df.sort_values("mean_iou", ascending=False)
+            run_data_df = run_data_df.sort_values("mAP", ascending=False)
             print(run_data_df)
 
             run_data_df.to_csv(f"./results/{viola_jones}_min_size_run_{str(run_time).replace(' ', '_')}", index=False)
@@ -207,9 +215,9 @@ class TaskRunner:
         elif task == Task.VJ_DOUBLE_FINE_TUNE:
             hyper_parameters = OrderedDict(
                 scale_factor=[1.05, 1.1, 1.2, 1.3],
-                min_neighbors=[3, 4, 5, 6, 7],
+                min_neighbors=[1, 2, 3, 4, 5, 6, 7],
+                min_size=[None]
             )
-
             run_data = []
             run_time = datetime.now()
             run_params = RunBuilder.get_runs(hyper_parameters)
@@ -218,25 +226,31 @@ class TaskRunner:
             print(f"Running {len(run_params)} experiments...")
 
             for param_set in tqdm(run_params):
-                viola_jones = DoubleViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                               "./weights/haarcascade_mcs_leftear.xml",
+                viola_jones = DoubleViolaJones(RIGHT_CASCADE,
+                                               LEFT_CASCADE,
                                                scale_factor=param_set.scale_factor,
                                                min_neighbour=param_set.min_neighbors)
 
                 predictions = viola_jones.predict(X_test)
                 mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
+
+                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.5,
+                iou_threshold_step=0.05, iou_threshold_stop=0.95)
+
                 print(f"mean_iou: {mean_iou}")
+                print(f"mAP: {mAP}")
 
                 results = OrderedDict()
                 results["method"] = str(viola_jones)
                 results["scale_factor"] = param_set.scale_factor
                 results["min_neighbors"] = param_set.min_neighbors
                 results["mean_iou"] = mean_iou
+                results["mAP"] = mAP
 
                 run_data.append(results)
 
             run_data_df = pd.DataFrame.from_dict(run_data, orient="columns")
-            run_data_df = run_data_df.sort_values("mean_iou", ascending=False)
+            run_data_df = run_data_df.sort_values("mAP", ascending=False)
             print(run_data_df)
 
             run_data_df.to_csv(f"./results/{viola_jones}_run_{str(run_time).replace(' ', '_')}", index=False)
@@ -263,7 +277,7 @@ class TaskRunner:
             
 
             plot_precision_recall_curves(r_vects, p_vects, 
-                                        labels, figure_title="pr_curve")
+                                        labels, figure_title="Precision Recal Curve (Threshold=0.5)")
 
         elif task == Task.MAP_TABLE:
             """
@@ -300,4 +314,4 @@ class TaskRunner:
             results_df.to_csv(f"./results/mAP_table", index=False)
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.MAP_TABLE)
+    TaskRunner.run(Task.PR_CURVE)
