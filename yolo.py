@@ -62,7 +62,7 @@ class YOLO:
                 detection = detection[0:4]
 
                 if convert_coordinates:
-                    image_height, image_width = image.shape
+                    image_height, image_width = image.shape[0], image.shape[1]
                     detection = YOLO.convert_detection(image_height, image_width, detection)
 
                 prediction.extend(detection)

@@ -10,12 +10,27 @@ from visualize import show_detection
 class ViolaJones:
     def __init__(self, cascade_path: str, scale_factor: float = None, min_neighbour: float = None,
                  min_size: float = None, max_size: float = None):
+        """
+        @param cascade_path:
+            Location of cascades
+        @param scale_factor:
+            Parameter specifying how much the image size is reduced at each image scale.
+        @param min_neighbour:
+            Parameter specifying how many neighbors each candidate
+            rectangle should have to retain it.
+        @param min_size:
+            Minimum possible object size. Objects smaller than that are ignored.
+        @param max_size:
+            Maximum possible object size. Objects larger than that are ignored
+        """
 
         self.cascade = cv2.CascadeClassifier(cascade_path)
         self.scale_factor = scale_factor
         self.min_neighbour = min_neighbour
         self.min_size = min_size
         self.max_size = max_size
+
+        self.cascade_name = "L" if "left" in cascade_path else "R"
 
     @staticmethod
     def convert_detection(image_height: int, image_width: int, detection: npt.NDArray) -> npt.NDArray:
@@ -64,7 +79,7 @@ class ViolaJones:
                 prediction = [sample_idx, predicted_class, predicted_prob]
 
                 if convert_coordinates:
-                    image_height, image_width = image.shape
+                    image_height, image_width = image.shape[0], image.shape[1]
                     detection = ViolaJones.convert_detection(image_height, image_width, detection)
 
                 prediction.extend(detection)
@@ -76,7 +91,13 @@ class ViolaJones:
         return predictions
 
     def __str__(self):
-        return "ViolaJones"
+        scale_factor = "sf=/" if not self.scale_factor else f"sf={self.scale_factor}"
+        min_neighbour = "mn=/" if not self.min_neighbour else f"mn={self.min_neighbour}"
+        min_size = "ms=/" if not not self.min_size else f"ms={self.min_size}"
+        model_name = "VJ" + "_" + str(self.cascade_name) + "_" \
+            + scale_factor + "_" + min_neighbour + "_" + min_size
+
+        return model_name
 
 
 if __name__ == "__main__":

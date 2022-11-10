@@ -10,6 +10,21 @@ from visualize import show_detection
 class DoubleViolaJones:
     def __init__(self, cascade1_path: str, cascade2_path: str, scale_factor: float = None, min_neighbour: float = None,
                  min_size: float = None, max_size: float = None):
+        """
+        @param cascade1_path:
+            Location of cascades (left ear)
+        @param cascade2_path:
+            Location of cascades (right ear)
+        @param scale_factor:
+            Parameter specifying how much the image size is reduced at each image scale.
+        @param min_neighbour:
+            Parameter specifying how many neighbors each candidate
+            rectangle should have to retain it.
+        @param min_size:
+            Minimum possible object size. Objects smaller than that are ignored.
+        @param max_size:
+            Maximum possible object size. Objects larger than that are ignored
+        """
 
         self.cascade1 = cv2.CascadeClassifier(cascade1_path)
         self.cascade2 = cv2.CascadeClassifier(cascade2_path)
@@ -18,6 +33,8 @@ class DoubleViolaJones:
         self.min_neighbour = min_neighbour
         self.min_size = min_size
         self.max_size = max_size
+
+        self.cascade_name = "L_R"
 
     @staticmethod
     def convert_detection(image_height: int, image_width: int, detection: npt.NDArray) -> npt.NDArray:
@@ -96,7 +113,13 @@ class DoubleViolaJones:
         return predictions
 
     def __str__(self):
-        return "DoubleViolaJones"
+        scale_factor = "sf=/" if not self.scale_factor else f"sf={self.scale_factor}"
+        min_neighbour = "mn=/" if not self.min_neighbour else f"mn={self.min_neighbour}"
+        min_size = "ms=/" if not not self.min_size else f"ms={self.min_size}"
+        model_name = "VJ" + "_" + str(self.cascade_name) + "_" \
+            + scale_factor + "_" + min_neighbour + "_" + min_size
+
+        return model_name
 
 
 if __name__ == "__main__":

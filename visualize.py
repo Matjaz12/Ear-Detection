@@ -26,7 +26,7 @@ def show_detection(image: npt.NDArray, ground_truth: npt.NDArray, predictions: n
     @param figure_name: Name of the figure to be saved.
     """
 
-    image_height, image_width = image.shape
+    image_height, image_width = image.shape[0],image.shape[1] 
 
     # Compute coordinates of ground truth box and display it
     sample_idx, true_class, prob, x_center, y_center, box_width, box_height = ground_truth
@@ -79,7 +79,7 @@ def plot_selected_samples(images: npt.NDArray, ground_truths: npt.NDArray,
         ground_truth = ground_truths[np.where(ground_truths[:, 0] == sample_idx)][0]
 
         # Compute image shape
-        image_height, image_width = image.shape
+        image_height, image_width = image.shape[0], image.shape[1]
 
         # Compute coordinates of ground truth box and display it
         sample_idx, true_class, prob, x_center, y_center, box_width, box_height = ground_truth

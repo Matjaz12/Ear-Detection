@@ -1,6 +1,7 @@
 import os
 import pickle
 
+import cv2
 import numpy as np
 import numpy.typing as npt
 from typing import Tuple
@@ -9,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
 
-def load_data(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
+def load_data(data_path: str, mode: str = "GRAY") -> Tuple[npt.NDArray, npt.NDArray]:
     """
     Function loads data and returns tensors X, y.
 
@@ -17,6 +18,7 @@ def load_data(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
     y is of shape (num samples, 6)
 
     @param data_path: Path to data.
+    @param mode: L ("gray scale"), RGB ("Red Green Blue")
     @return: X (samples) and y (labels).
     """
     X, y = [], []
@@ -25,8 +27,12 @@ def load_data(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
     # Store images
     for filename in sorted(os.listdir(data_path)):
         if filename.endswith(".png"):
-            image_data = Image.open(data_path + "/" + filename).convert("L")
-            image = np.array(image_data)
+            image = cv2.imread(data_path + "/" + filename)
+            
+            if mode == "GRAY":
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            elif mode == "RGB":
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
             sample_id = filename.split(".")[0]
             data[sample_id] = [image]
@@ -96,9 +102,11 @@ def save_data_pickle(data_path, X: npt.NDArray, y: npt.NDArray) -> None:
 
 
 if __name__ == "__main__":
-    # X_test, y_test = load_data(data_path="./ear_data/test")
-    # save_data_pickle("./ear_data/X_test_and_y_test.pickle", X_test, y_test)
-    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
+    MODE = "GRAY"
+
+    X_test, y_test = load_data(data_path="./ear_data/test", mode=MODE)
+    save_data_pickle(f"./ear_data/X_test_and_y_test_{MODE}.pickle", X_test, y_test)
+    X_test, y_test = load_data_pickle(f"./ear_data/X_test_and_y_test_{MODE}.pickle")
     print(f"X_test.shape: {X_test.shape}")
     print(f"y_test.shape: {y_test.shape}")
     print(f"sample_idx: {y_test[0][0]}, true_class: {y_test[0][1]}, prob: {y_test[0][2]}, bounding_box: {y_test[0][3:]}")

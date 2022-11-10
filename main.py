@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from double_viola_jones import DoubleViolaJones
 from evaluation import intersection_over_union, mean_intersection_over_union, intersection_over_union_vector, \
-    precision_recall_curve_2
+    precision_recall_curve_all_thresholds, plot_precision_recall_curve, plot_precision_recall_curves
 from load_data import *
 import matplotlib.pyplot as plt
 from visualize import show_detection, plot_selected_samples
@@ -53,7 +53,11 @@ class RunBuilder:
 class TaskRunner:
     @staticmethod
     def run(task: Task) -> None:
-        X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
+        LEFT_CASCADE = "./weights/haarcascade_mcs_rightear.xml"
+        RIGHT_CASCADE = "./weights/haarcascade_mcs_leftear.xml"
+        YOLO_WEIGHTS = "./weights/yolo5s.pt"
+
+        X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
 
         if task == Task.VJ_MEAN_IOU:
             # viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
@@ -89,7 +93,7 @@ class TaskRunner:
             pred = predictions[np.where(predictions[:, 0] == index_to_show)]
 
             # Print IoU
-            image_height, image_width = X_test[index_to_show].shape
+            image_height, image_width = X_test[index_to_show].shape[0], X_test[index_to_show].shape[1]
             for curr_pred in pred:
                 iou = intersection_over_union(y_test[index_to_show], curr_pred, image_height, image_width)
                 print(f"IoU: {iou}")
@@ -109,7 +113,7 @@ class TaskRunner:
             pred = predictions[np.where(predictions[:, 0] == index_to_show)]
 
             # Print IoU
-            image_height, image_width = X_test[index_to_show].shape
+            image_height, image_width = X_test[index_to_show].shape[0], X_test[index_to_show].shape[1]
             for curr_pred in pred:
                 iou = intersection_over_union(y_test[index_to_show], curr_pred, image_height, image_width)
                 print(f"IoU: {iou}")
@@ -118,7 +122,8 @@ class TaskRunner:
             show_detection(X_test[index_to_show],
                            y_test[index_to_show],
                            pred,
-                           figure_name=str(yolo))
+                           figure_name=str(yolo),
+                           save=True)
 
         elif task == Task.VJ_SHOW_BEST_PREDICTIONS:
             viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml",
@@ -146,7 +151,9 @@ class TaskRunner:
 
         elif task == Task.VJ_FAILED_PREDICTIONS:
             viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml",
+                                     scale_factor=1.20,
                                      min_neighbour=3)
+
             predictions = viola_jones.predict(X_test)
 
             iou_s = intersection_over_union_vector(X_test, y_test, predictions)
@@ -158,9 +165,17 @@ class TaskRunner:
                                   figure_name="vj_worst6_predictions")
 
         elif task == Task.VJ_FINE_TUNE:
+            """
             hyper_parameters = OrderedDict(
                 scale_factor=[1.05, 1.1, 1.2, 1.3],
-                min_neighbors=[3, 4, 5, 6, 7]
+                min_neighbors=[3, 4, 5, 6, 7],
+            )
+            """
+
+            hyper_parameters = OrderedDict(
+                scale_factor=[1.2],
+                min_neighbors=[3],
+                min_size=[(70, 70)]
             )
 
             run_data = []
@@ -171,9 +186,10 @@ class TaskRunner:
             print(f"Running {len(run_params)} experiments...")
 
             for param_set in tqdm(run_params):
-                viola_jones = ViolaJones(cascade_path="./weights/haarcascade_mcs_leftear.xml",
+                viola_jones = ViolaJones(cascade_path="./weights/haarcascade_mcs_rightear.xml",
                                          scale_factor=param_set.scale_factor,
-                                         min_neighbour=param_set.min_neighbors)
+                                         min_neighbour=param_set.min_neighbors,
+                                         min_size=param_set.min_size)
 
                 predictions = viola_jones.predict(X_test)
                 mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
@@ -183,6 +199,7 @@ class TaskRunner:
                 results["method"] = str(viola_jones)
                 results["scale_factor"] = param_set.scale_factor
                 results["min_neighbors"] = param_set.min_neighbors
+                results["min_size"] = param_set.min_size
                 results["mean_iou"] = mean_iou
 
                 run_data.append(results)
@@ -191,12 +208,12 @@ class TaskRunner:
             run_data_df = run_data_df.sort_values("mean_iou", ascending=False)
             print(run_data_df)
 
-            run_data_df.to_csv(f"./results/{viola_jones}_run_{str(run_time).replace(' ', '_')}", index=False)
+            run_data_df.to_csv(f"./results/{viola_jones}_min_size_run_{str(run_time).replace(' ', '_')}", index=False)
 
         elif task == Task.VJ_DOUBLE_FINE_TUNE:
             hyper_parameters = OrderedDict(
                 scale_factor=[1.05, 1.1, 1.2, 1.3],
-                min_neighbors=[3, 4, 5, 6, 7]
+                min_neighbors=[3, 4, 5, 6, 7],
             )
 
             run_data = []
@@ -231,11 +248,26 @@ class TaskRunner:
             run_data_df.to_csv(f"./results/{viola_jones}_run_{str(run_time).replace(' ', '_')}", index=False)
 
         elif task == Task.PR_CURVE:
-            # viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
-            viola_jones = ViolaJones("./weights/haarcascade_mcs_leftear.xml")
+            hyper_parameters=OrderedDict(
+                model=[ViolaJones(LEFT_CASCADE), ViolaJones(RIGHT_CASCADE), 
+                DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)]
+            )
 
-            predictions = viola_jones.predict(X_test)
-            precision_recall_curve_2(X_test, y_test, predictions, figure_title="vj_pr_curve")
+            r_vects, p_vects, labels = [], [], []
+            run_params = RunBuilder.get_runs(hyper_parameters)
+
+            print(f"Plotting {len(run_params)} PR curves...")
+            for param_set in run_params:
+                predictions = param_set.model.predict(X_test)
+                r_vect, p_vect = precision_recall_curve_all_thresholds(X_test, y_test, predictions)
+                
+                r_vects.append(r_vect)
+                p_vects.append(p_vect)
+                labels.append(str(param_set.model))
+            
+
+            plot_precision_recall_curves(r_vects, p_vects, 
+                                        labels, figure_title="pr_curve")
 
 
 if __name__ == "__main__":
