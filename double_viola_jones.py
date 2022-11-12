@@ -106,7 +106,7 @@ class DoubleViolaJones:
                 prediction = [sample_idx, predicted_class, confidence]
 
                 if convert_coordinates:
-                    image_height, image_width = image.shape
+                    image_height, image_width = image.shape[0], image.shape[1]
                     detection = DoubleViolaJones.convert_detection(image_height, image_width, detection)
 
                 prediction.extend(detection)

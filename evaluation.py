@@ -149,7 +149,7 @@ def plot_precision_recall_curves(recall_vectors: npt.NDArray, precision_vectors:
 
     plt.legend(loc="lower right")
     if figure_title != "":
-        plt.savefig(f"./results/{figure_title}.png")
+        plt.savefig(f"./results/{figure_title}.pdf")
 
 
 def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: npt.NDArray,

@@ -239,8 +239,8 @@ class TaskRunner:
                 predictions = viola_jones.predict(X_test)
                 mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
 
-                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.5,
-                iou_threshold_step=0.05, iou_threshold_stop=0.95)
+                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.0,
+                iou_threshold_step=0.01, iou_threshold_stop=1.0)
 
                 print(f"mean_iou: {mean_iou}")
                 print(f"mAP: {mAP}")
@@ -249,8 +249,8 @@ class TaskRunner:
                 results["method"] = str(viola_jones)
                 results["scale_factor"] = param_set.scale_factor
                 results["min_neighbors"] = param_set.min_neighbors
-                results["mean_iou"] = mean_iou
-                results["mAP"] = mAP
+                results["mean_iou"] = np.round(mean_iou, 3)
+                results["mAP"] = np.round(mAP, 3)
 
                 run_data.append(results)
 
@@ -262,7 +262,7 @@ class TaskRunner:
 
         elif task == Task.PR_CURVE:
             hyper_parameters=OrderedDict(
-                model=[DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
+                model=[YOLO(YOLO_WEIGHTS), DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE)],
                 iou_threshold=[0.5]
             )
 
@@ -281,27 +281,22 @@ class TaskRunner:
             
 
             plot_precision_recall_curves(r_vects, p_vects, 
-                                        labels, figure_title="Precision Recal Curve (Threshold=0.5)")
+                                        labels, figure_title="Precision Recal Curve (IoU Threshold=0.5)")
 
         elif task == Task.MAP_TABLE:
-            """
-            Coco: AP@[0.5:0.05:0.95]
-            """
-
             hyper_parameters=OrderedDict(
-                model=[DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
+                model=[YOLO(YOLO_WEIGHTS)],
                 iou_threshold=[0.5]
             )
 
-            
             results = []
             mAPs, labels = [], []
             run_params = RunBuilder.get_runs(hyper_parameters)
 
             for param_set in run_params:
                 predictions = param_set.model.predict(X_test)
-                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.5,
-                                        iou_threshold_step=0.05, iou_threshold_stop=0.95)
+                mAP = mean_accuracy_precision(X_test, y_test, predictions, iou_threshold_start=0.0,
+                                        iou_threshold_step=0.01, iou_threshold_stop=1.0)
 
                 result = OrderedDict()
                 result["mAP"] = mAP
@@ -317,4 +312,4 @@ class TaskRunner:
             results_df.to_csv(f"./results/mAP_table", index=False)
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.MAP_TABLE)
+    TaskRunner.run(Task.VJ_SHOW_BEST_PREDICTIONS)

@@ -5,6 +5,5 @@ if __name__ == "__main__":
     df = pd.read_csv(FILE_PATH + ".csv") 
     df = df.round(3)
 
-
-    df.to_csv(FILE_PATH + "_rounded" + ".csv", index=False)
+    df.to_csv(FILE_PATH + ".csv", index=False)
     print(df)
