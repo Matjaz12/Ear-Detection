@@ -1,21 +1,26 @@
 from collections import OrderedDict, namedtuple
 from datetime import datetime
+from enum import Enum
 from itertools import product
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from double_viola_jones import DoubleViolaJones
-from evaluation import intersection_over_union, mean_intersection_over_union, intersection_over_union_vector, \
-    precision_recall_curve_all_thresholds, plot_precision_recall_curve, plot_precision_recall_curves, precision_recall_curve_fixed_threshold, mean_accuracy_precision
+from evaluation import (intersection_over_union,
+                        intersection_over_union_vector,
+                        mean_accuracy_precision, mean_intersection_over_union,
+                        plot_precision_recall_curve,
+                        plot_precision_recall_curves,
+                        precision_recall_curve_all_thresholds,
+                        precision_recall_curve_fixed_threshold)
 from load_data import *
-import matplotlib.pyplot as plt
-from visualize import show_detection, plot_selected_samples
 from viola_jones import ViolaJones
+from visualize import plot_selected_samples, show_detection
 from yolo import YOLO
-from enum import Enum
 
 
 class Task(Enum):
@@ -27,7 +32,7 @@ class Task(Enum):
     VJ_FINE_TUNE = 5
     VJ_SHOW_BEST_PREDICTIONS = 6
     YOLO_SHOW_BEST_PREDICTIONS = 7
-    VJ_FAILED_PREDICTIONS = 8
+    VJ_SHOW_FAILED_PREDICTIONS = 8
     VJ_DOUBLE_FINE_TUNE = 9
     PR_CURVE = 10
     MAP_TABLE = 11
@@ -129,8 +134,10 @@ class TaskRunner:
                            save=True)
 
         elif task == Task.VJ_SHOW_BEST_PREDICTIONS:
-            viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                     min_neighbour=3)
+            viola_jones = DoubleViolaJones(RIGHT_CASCADE,
+                                        LEFT_CASCADE,
+                                        scale_factor=1.05,
+                                        min_neighbour=1)
             predictions = viola_jones.predict(X_test)
 
             iou_s = intersection_over_union_vector(X_test, y_test, predictions)
@@ -152,10 +159,11 @@ class TaskRunner:
                                   iou_s_sorted[0:TOP_N], 2, 3,
                                   figure_name="yolo_top6_predictions")
 
-        elif task == Task.VJ_FAILED_PREDICTIONS:
-            viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                     scale_factor=1.20,
-                                     min_neighbour=3)
+        elif task == Task.VJ_SHOW_FAILED_PREDICTIONS:
+            viola_jones = DoubleViolaJones(RIGHT_CASCADE,
+                                        LEFT_CASCADE,
+                                        scale_factor=1.05,
+                                        min_neighbour=1)
 
             predictions = viola_jones.predict(X_test)
 
@@ -314,4 +322,4 @@ class TaskRunner:
             results_df.to_csv(f"./results/mAP_table", index=False)
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.PR_CURVE)
+    TaskRunner.run(Task.VJ_SHOW_BEST_PREDICTIONS)

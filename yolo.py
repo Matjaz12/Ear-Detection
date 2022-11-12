@@ -1,6 +1,6 @@
-import torch
-import numpy.typing as npt
 import numpy as np
+import numpy.typing as npt
+import torch
 
 from load_data import load_data_pickle
 from visualize import show_detection
@@ -14,11 +14,11 @@ class YOLO:
     def convert_detection(image_height: int, image_width: int, detection: npt.NDArray) -> npt.NDArray:
         """
         Convert detection returned by YOLO algorithm
-        @param image_height: height of the input image
-        @param image_width: width of the input image
-        @param detection: Detection returned by YOLO algorithm,
+        :param image_height: height of the input image
+        :param image_width: width of the input image
+        :param detection: Detection returned by YOLO algorithm,
             [x_min, y_min, x_max, y_max]
-        @return:
+        :return:
             Detection in the following format:
             [x_center, y_center, box_width, box_height]
         """
@@ -41,9 +41,9 @@ class YOLO:
     def predict(self, images: npt.NDArray, convert_coordinates: bool = True) -> npt.NDArray:
         """
         Function predicts the bounding boxes.
-        @param images: Input images
-        @param convert_coordinates: Convert predicted coordinates or not.
-        @return: List of predictions:
+        :param images: Input images
+        :param convert_coordinates: Convert predicted coordinates or not.
+        :return: List of predictions:
             [[sample_idx, predicted_class, predicted_prob, bounding_box], ...]
         """
 

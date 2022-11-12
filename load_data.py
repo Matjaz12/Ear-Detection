@@ -1,13 +1,13 @@
 import os
 import pickle
+from typing import Tuple
 
 import cv2
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from typing import Tuple
-from PIL import Image
-import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from PIL import Image
 
 
 def load_data(data_path: str, mode: str = "GRAY") -> Tuple[npt.NDArray, npt.NDArray]:
@@ -17,9 +17,9 @@ def load_data(data_path: str, mode: str = "GRAY") -> Tuple[npt.NDArray, npt.NDAr
     X is of shape (num samples, )
     y is of shape (num samples, 6)
 
-    @param data_path: Path to data.
-    @param mode: L ("gray scale"), RGB ("Red Green Blue")
-    @return: X (samples) and y (labels).
+    :param data_path: Path to data.
+    :param mode: L ("gray scale"), RGB ("Red Green Blue")
+    :return: X (samples) and y (labels).
     """
     X, y = [], []
     data = {}
@@ -38,7 +38,6 @@ def load_data(data_path: str, mode: str = "GRAY") -> Tuple[npt.NDArray, npt.NDAr
             data[sample_id] = [image]
 
     # Store labels
-    sample_idx = 0
     for filename in sorted(os.listdir(data_path)):
         if filename.endswith(".txt"):
             sample_id = filename.split(".")[0]
@@ -57,13 +56,12 @@ def load_data(data_path: str, mode: str = "GRAY") -> Tuple[npt.NDArray, npt.NDAr
                 """
                 sample_label = [sample_idx, true_class, prob, x_center, y_center, w, h]
                 """
-                sample_label = [sample_idx, true_class, prob]
+                sample_label = [int(sample_id), true_class, prob]
                 sample_label.extend(bounding_box)
 
                 # Store sample label
                 data[sample_id].append(np.array(sample_label))
 
-            sample_idx += 1
 
     for image, bounding_box in data.values():
         X.append(image)
@@ -78,8 +76,8 @@ def load_data(data_path: str, mode: str = "GRAY") -> Tuple[npt.NDArray, npt.NDAr
 def load_data_pickle(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
     """
     Load data stored in pickle format.
-    @param data_path: Path to data.
-    @return: X (samples) and y (labels).
+    :param data_path: Path to data.
+    :return: X (samples) and y (labels).
     """
     with open(data_path, 'rb') as handle:
         X_test, y_test = pickle.load(handle)
@@ -93,20 +91,22 @@ def load_data_pickle(data_path: str) -> Tuple[npt.NDArray, npt.NDArray]:
 def save_data_pickle(data_path, X: npt.NDArray, y: npt.NDArray) -> None:
     """
     Save data in pickle format.
-    @param data_path: Path to data.
-    @param X: Samples
-    @param y: Labels
+    :param data_path: Path to data.
+    :param X: Samples
+    :param y: Labels
     """
     with open(data_path, "wb") as handle:
         pickle.dump((X, y), handle)
 
 
 if __name__ == "__main__":
-    MODE = "GRAY"
+    MODE = "RGB"
 
     X_test, y_test = load_data(data_path="./ear_data/test", mode=MODE)
-    save_data_pickle(f"./ear_data/X_test_and_y_test_{MODE}.pickle", X_test, y_test)
-    X_test, y_test = load_data_pickle(f"./ear_data/X_test_and_y_test_{MODE}.pickle")
     print(f"X_test.shape: {X_test.shape}")
     print(f"y_test.shape: {y_test.shape}")
     print(f"sample_idx: {y_test[0][0]}, true_class: {y_test[0][1]}, prob: {y_test[0][2]}, bounding_box: {y_test[0][3:]}")
+
+    from visualize import show_detection
+    for i in range(400, 500):
+        show_detection(X_test[i], y_test[i], [], figure_name=f"sample: {y_test[i][0]}")

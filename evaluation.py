@@ -1,15 +1,15 @@
+from collections import Counter
 from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
+from double_viola_jones import DoubleViolaJones
 from load_data import load_data_pickle
 from viola_jones import ViolaJones
-from double_viola_jones import DoubleViolaJones
 from visualize import show_detection
 from yolo import YOLO
-from collections import Counter
 
 
 def intersection_over_union(ground_truth: npt.NDArray, prediction: npt.NDArray,
@@ -18,11 +18,11 @@ def intersection_over_union(ground_truth: npt.NDArray, prediction: npt.NDArray,
     Function computes intersection over union given ground truth annotation
     and a prediction.
 
-    @param ground_truth: Ground truth (single groundtruth).
-    @param prediction: Predicted bounding box (single predicted sample).
-    @param image_height: Height of the image.
-    @param image_width: Width of the image.
-    @return: intersection over union for the given prediction.
+    :param ground_truth: Ground truth (single groundtruth).
+    :param prediction: Predicted bounding box (single predicted sample).
+    :param image_height: Height of the image.
+    :param image_width: Width of the image.
+    :return: intersection over union for the given prediction.
     """
 
     sample_idx, true_class, true_prob, x_center, y_center, box_width, box_height = ground_truth
@@ -63,10 +63,10 @@ def intersection_over_union_vector(images: npt.NDArray, ground_truths: npt.NDArr
     Function computes intersection over union for a set of provided
     predictions.
 
-    @param images: Images on which predictions were made.
-    @param ground_truths: Ground truth annotations for each image.
-    @param predictions: A set of predictions
-    @return: Vector containing each prediction and its corresponding
+    :param images: Images on which predictions were made.
+    :param ground_truths: Ground truth annotations for each image.
+    :param predictions: A set of predictions
+    :return: Vector containing each prediction and its corresponding
         intersection over union.
         [sample_idx, prediction, iou]
     """
@@ -88,10 +88,10 @@ def mean_intersection_over_union(images: npt.NDArray, ground_truths: npt.NDArray
     """
     Function computes the mean intersection over union (mIoU).
 
-    @param images: Images on which predictions were made.
-    @param ground_truths: Ground truth annotations for each image.
-    @param predictions: A set of predictions.
-    @return: mean intersection over union.
+    :param images: Images on which predictions were made.
+    :param ground_truths: Ground truth annotations for each image.
+    :param predictions: A set of predictions.
+    :return: mean intersection over union.
     """
 
     p_iou = intersection_over_union_vector(images, ground_truths, predictions)
@@ -105,9 +105,9 @@ def plot_precision_recall_curve(recall_vector:npt.NDArray, precision_vector: npt
     """
     Function plots the precision recall curve.
     
-    @param: recall_vector: Vector holding recall values.
-    @param: presicion_vector: Vector holding precision values.
-    @param: figure_title: Title of the ploted figure.
+    :param: recall_vector: Vector holding recall values.
+    :param: presicion_vector: Vector holding precision values.
+    :param: figure_title: Title of the ploted figure.
     """
     
     plt.style.use(['science','ieee', 'notebook', 'grid'])
@@ -129,10 +129,10 @@ def plot_precision_recall_curves(recall_vectors: npt.NDArray, precision_vectors:
     """
     Function plots the precision recall curves
     
-    @param: recall_vector: Vector of recall vectors.
-    @param: presicion_vector: Vector of precision vectors.
-    @param labels: Corresponding lables for each recall and precision vector.
-    @param: figure_title: Title of the ploted figure.
+    :param: recall_vector: Vector of recall vectors.
+    :param: presicion_vector: Vector of precision vectors.
+    :param labels: Corresponding lables for each recall and precision vector.
+    :param: figure_title: Title of the ploted figure.
     """
 
     plt.style.use(['science','ieee', 'notebook', 'grid'])
@@ -161,11 +161,11 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
     It utilizes the confidence score associated with each
     prediction returned by detection models.
 
-    @param images: Images on which predictions were made.
-    @param ground_truths: Ground truth annotations for each image.
-    @param predictions: A set of predictions.
-    @param iou_threshold: Threshold used to classify a prediction as a TP or FP.
-    @return: recall and precision vectors.
+    :param images: Images on which predictions were made.
+    :param ground_truths: Ground truth annotations for each image.
+    :param predictions: A set of predictions.
+    :param iou_threshold: Threshold used to classify a prediction as a TP or FP.
+    :return: recall and precision vectors.
     """
 
     iou_vector = intersection_over_union_vector(images, ground_truths, predictions)
@@ -182,7 +182,6 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
     # Sort by confidence
     iou_conf_vector = iou_conf_vector[iou_conf_vector[:, -1].argsort()[::-1]]
 
-    """
     from scipy.stats import pearsonr
     corr, _ = pearsonr(iou_conf_vector[:, 1], iou_conf_vector[:, 2] / np.max(iou_conf_vector[:, 2]))
     plt.style.use(['science','ieee', 'notebook', 'grid'])
@@ -191,9 +190,8 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
     plt.xlabel("IoU")
     plt.ylabel("Confidence")
     plt.title(f"IoU vs Confidence plot, correlation: {np.round(corr, 2)}")
-    plt.savefig("./img/test")
+    plt.savefig("./img/yolo_iou_vs_confidence.pdf")
     plt.show()
-    """
 
     # Use iou_threshold to determine FP or TP
     tp_vector = np.expand_dims(iou_conf_vector[:, 1] >= iou_threshold, axis=1)
@@ -245,12 +243,12 @@ def precision_recall_curve_all_thresholds(images: npt.NDArray, ground_truths: np
     Function plots the precision-recall curve for each threshold in range
     0.0 to 1.0 using step size of `iou_threshold_step`.
 
-    @param images: Images on which predictions were made.
-    @param ground_truths: Ground truth annotations for each image.
-    @param predictions: A set of predictions.
-    @param iou_threshold_step: Delta between two consecutive threshold values.
-    @param iou_threshold_start: Starting value for iou threshold.
-    @param iou_threshold_stop: Stopping value for iou threshold.
+    :param images: Images on which predictions were made.
+    :param ground_truths: Ground truth annotations for each image.
+    :param predictions: A set of predictions.
+    :param iou_threshold_step: Delta between two consecutive threshold values.
+    :param iou_threshold_start: Starting value for iou threshold.
+    :param iou_threshold_stop: Stopping value for iou threshold.
     """
 
     recall_vector, precision_vector = [], []
@@ -286,10 +284,10 @@ def mean_accuracy_precision_for_threshold(images: npt.NDArray, ground_truths: np
     Function computes mean accuracy precision (mAP_t), which is defined as
     the area under the precision-recall curve (computed for a given threshold)
 
-    @param images: Images on which predictions were made.
-    @param ground_truths: Ground truth annotations for each image.
-    @param predictions: A set of predictions.
-    @param iou_threshold: Threshold used to classify a prediction as a TP or FP.
+    :param images: Images on which predictions were made.
+    :param ground_truths: Ground truth annotations for each image.
+    :param predictions: A set of predictions.
+    :param iou_threshold: Threshold used to classify a prediction as a TP or FP.
     """
 
     recall_vector, precision_vector = precision_recall_curve_fixed_threshold(images, ground_truths,
@@ -308,12 +306,12 @@ def mean_accuracy_precision(images: npt.NDArray, ground_truths: npt.NDArray,
     the mean of mAP_t's for all thesholds from:
          iou_threshold_start: iou_threshold_step: iou_threshold_stop
 
-    @param images: Images on which predictions were made.
-    @param ground_truths: Ground truth annotations for each image.
-    @param predictions: A set of predictions.
-    @param iou_threshold_step: Delta between two consecutive threshold values.
-    @param iou_threshold_start: Starting value for iou threshold.
-    @param iou_threshold_stop: Stopping value for iou threshold.
+    :param images: Images on which predictions were made.
+    :param ground_truths: Ground truth annotations for each image.
+    :param predictions: A set of predictions.
+    :param iou_threshold_step: Delta between two consecutive threshold values.
+    :param iou_threshold_start: Starting value for iou threshold.
+    :param iou_threshold_stop: Stopping value for iou threshold.
     """
 
     mAP_ts = []
@@ -327,20 +325,18 @@ def mean_accuracy_precision(images: npt.NDArray, ground_truths: npt.NDArray,
 
 
 if __name__ == "__main__":
-    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
 
-    viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
+    X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
+    """
+
+    viola_jones = DoubleViolaJones("./weights/haarcascade_mcs_rightear.xml",
+                                "./weights/haarcascade_mcs_leftear.xml")
     predictions = viola_jones.predict(X_test)
+
+    """
+
+    yolo = YOLO("./weights/yolo5s.pt")
+    predictions = yolo.predict(X_test)
 
     recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions)
     plot_precision_recall_curve(recall, precision)
-    
-    """
-    yolo = YOLO("./weights/yolo5s.pt")
-    predictions = yolo.predict(X_test)
-    mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
-    print(f"mean_iou: {mean_iou}")
-
-    recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions)
-    plot_precision_recall_curve(recall, precision, figure_title="test_yolo_pr_curve")
-    """

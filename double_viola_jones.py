@@ -11,18 +11,18 @@ class DoubleViolaJones:
     def __init__(self, cascade1_path: str, cascade2_path: str, scale_factor: float = None, min_neighbour: float = None,
                  min_size: float = None, max_size: float = None):
         """
-        @param cascade1_path:
+        :param cascade1_path:
             Location of cascades (left ear)
-        @param cascade2_path:
+        :param cascade2_path:
             Location of cascades (right ear)
-        @param scale_factor:
+        :param scale_factor:
             Parameter specifying how much the image size is reduced at each image scale.
-        @param min_neighbour:
+        :param min_neighbour:
             Parameter specifying how many neighbors each candidate
             rectangle should have to retain it.
-        @param min_size:
+        :param min_size:
             Minimum possible object size. Objects smaller than that are ignored.
-        @param max_size:
+        :param max_size:
             Maximum possible object size. Objects larger than that are ignored
         """
 
@@ -40,11 +40,11 @@ class DoubleViolaJones:
     def convert_detection(image_height: int, image_width: int, detection: npt.NDArray) -> npt.NDArray:
         """
         Convert detection by cv2 viola jones algorithm
-        @param image_height: height of the input image
-        @param image_width: width of the input image
-        @param detection: Detection returned by cv2 viola jones algorithm,
+        :param image_height: height of the input image
+        :param image_width: width of the input image
+        :param detection: Detection returned by cv2 viola jones algorithm,
             [x_up, y_up, box_width, box_height]
-        @return:
+        :return:
             Detection in the following format
             [x_center, y_center, box_width, box_height]
         """
@@ -63,9 +63,9 @@ class DoubleViolaJones:
     def predict(self, images: npt.NDArray, convert_coordinates: bool = True) -> npt.NDArray:
         """
         Function predicts the bounding boxes.
-        @param images: Input images
-        @param convert_coordinates: Convert predicted coordinates or not.
-        @return: List of predictions:
+        :param images: Input images
+        :param convert_coordinates: Convert predicted coordinates or not.
+        :return: List of predictions:
             [[sample_idx, predicted_class, predicted_prob, bounding_box], ...]
         """
 

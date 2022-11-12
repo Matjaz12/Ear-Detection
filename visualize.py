@@ -1,12 +1,12 @@
 import os
 import pickle
+from typing import Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from typing import Tuple
-from PIL import Image
-import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from PIL import Image
 
 from load_data import load_data_pickle
 
@@ -16,14 +16,14 @@ def show_detection(image: npt.NDArray, ground_truth: npt.NDArray, predictions: n
     """
     Function displays the ground truth bounding box and all the predicted bounding boxes.
 
-    @param image: Input image
-    @param ground_truth:
+    :param image: Input image
+    :param ground_truth:
             Ground truth image label.
             [sample_idx, true_class, prob, x_center, y_center, box_width, box_height]
-    @param predictions:
+    :param predictions:
             List of predictions
             [[sample_idx, class_hat, prob_hat, x_center_hat, y_center_hat, box_width_hat, box_height_hat], ...]
-    @param figure_name: Name of the figure to be saved.
+    :param figure_name: Name of the figure to be saved.
     """
 
     image_height, image_width = image.shape[0],image.shape[1] 
@@ -61,7 +61,7 @@ def show_detection(image: npt.NDArray, ground_truth: npt.NDArray, predictions: n
 
     plt.title(figure_name)
     if save:
-        plt.savefig(f"./img/{figure_name}.png")
+        plt.savefig(f"./img/{figure_name}.pdf")
     plt.show()
 
 
@@ -107,15 +107,16 @@ def plot_selected_samples(images: npt.NDArray, ground_truths: npt.NDArray,
         ax.add_patch(Rectangle((x_ul_hat, y_ul_hat), box_width_hat, box_height_hat, fill=None, color="red", lw=1))
         ax.text(x_ul_hat, y_ul_hat - 10, f"P: {np.round(prob_hat, 2)}, Iou: {np.round(iou, 2)}", color="red", fontsize=10)
 
+        ax.set_title(f"sample: {sample_idx}")
         ax.set_xticks([])
         ax.set_yticks([])
 
-    plt.savefig(f"./img/{figure_name}.png")
+    plt.savefig(f"./img/{figure_name}.pdf")
     plt.show()
 
 
 if __name__ == "__main__":
     X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
 
-    for i in range(400, 500):
+    for i in range(0, 500):
         show_detection(X_test[i], y_test[i], [], figure_name="ground_truth_example")
