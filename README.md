@@ -10,4 +10,4 @@ for each parameter set. We experiment with a parameter called
 the confidence of the model. Finally we take a look at a subset
 of predictions and try to elaborate on the results.
 
-For more inforamtion refer to: [Ear-Detection](https://github.com/Matjaz12/Ear-Detection/blob/main/report.pdf)
+For more information please refer to: [Ear-Detection](https://github.com/Matjaz12/Ear-Detection/blob/main/report.pdf)
