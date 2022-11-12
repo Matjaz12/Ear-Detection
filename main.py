@@ -68,8 +68,8 @@ class TaskRunner:
         X_test, y_test = load_data_pickle(f"./ear_data/X_test_and_y_test_{IMAGE_MODE}.pickle")
 
         if task == Task.VJ_MEAN_IOU:
-            # viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml")
-            viola_jones = ViolaJones("./weights/haarcascade_mcs_leftear.xml")
+            # viola_jones = ViolaJones(LEFT_CASCADE)
+            viola_jones = ViolaJones(RIGHT_CASCADE)
 
             predictions = viola_jones.predict(X_test)
             mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
@@ -83,17 +83,14 @@ class TaskRunner:
 
         elif task == Task.VJ_DOUBLE_MEAN_IOU:
             X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test.pickle")
-
-            viola_jones = DoubleViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                           "./weights/haarcascade_mcs_leftear.xml")
+            viola_jones = DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE)
             predictions = viola_jones.predict(X_test)
             mean_iou = mean_intersection_over_union(X_test, y_test, predictions)
             print(f"mean_iou: {mean_iou}")
 
         elif task == Task.VJ_SHOW_RANDOM_PREDICTION:
             # Show ground truth and prediction for a random sample.
-            viola_jones = ViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                     min_neighbour=3)
+            viola_jones = DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE)
             predictions = viola_jones.predict(X_test)
 
             index_to_show = int(np.random.choice(predictions[:, 0]))
@@ -265,8 +262,7 @@ class TaskRunner:
 
         elif task == Task.PR_CURVE:
             hyper_parameters=OrderedDict(
-                model=[ViolaJones(LEFT_CASCADE), ViolaJones(RIGHT_CASCADE), 
-                DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
+                model=[DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
                 iou_threshold=[0.5]
             )
 
@@ -293,8 +289,7 @@ class TaskRunner:
             """
 
             hyper_parameters=OrderedDict(
-                model=[ViolaJones(LEFT_CASCADE), ViolaJones(RIGHT_CASCADE), 
-                DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
+                model=[DoubleViolaJones(RIGHT_CASCADE, LEFT_CASCADE), YOLO(YOLO_WEIGHTS)],
                 iou_threshold=[0.5]
             )
 
@@ -322,4 +317,4 @@ class TaskRunner:
             results_df.to_csv(f"./results/mAP_table", index=False)
 
 if __name__ == "__main__":
-    TaskRunner.run(Task.VJ_SHOW_BEST_PREDICTIONS)
+    TaskRunner.run(Task.MAP_TABLE)

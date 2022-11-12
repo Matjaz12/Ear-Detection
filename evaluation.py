@@ -182,6 +182,7 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
     # Sort by confidence
     iou_conf_vector = iou_conf_vector[iou_conf_vector[:, -1].argsort()[::-1]]
 
+    """
     from scipy.stats import pearsonr
     corr, _ = pearsonr(iou_conf_vector[:, 1], iou_conf_vector[:, 2] / np.max(iou_conf_vector[:, 2]))
     plt.style.use(['science','ieee', 'notebook', 'grid'])
@@ -192,9 +193,21 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
     plt.title(f"IoU vs Confidence plot, correlation: {np.round(corr, 2)}")
     plt.savefig("./img/yolo_iou_vs_confidence.pdf")
     plt.show()
+    """
 
     # Use iou_threshold to determine FP or TP
-    tp_vector = np.expand_dims(iou_conf_vector[:, 1] >= iou_threshold, axis=1)
+    # Take into account that there can only be one TP in each sample image
+    tp_vector = np.zeros(iou_conf_vector.shape[0])
+    tp_idxes = set()
+
+    for i in range(iou_conf_vector.shape[0]):
+        sample_idx, sample_iou, sample_conf = iou_conf_vector[i]
+
+        if sample_iou > iou_threshold and sample_idx not in tp_idxes:
+            tp_vector[i] = 1
+            tp_idxes.add(sample_idx)
+
+    tp_vector = np.expand_dims(tp_vector, axis=1)
     fp_vector = np.logical_not(tp_vector)
 
     iou_conf_vector = np.concatenate(
@@ -206,6 +219,11 @@ def precision_recall_curve_fixed_threshold(images: npt.NDArray, ground_truths: n
         (iou_conf_vector, fp_vector),
         axis=1
     )
+
+    for i in range(iou_conf_vector.shape[0]):
+        tp_sum_for_index_i = iou_conf_vector[np.where(iou_conf_vector[:, 0] == i)][:, 3].sum()
+        if tp_sum_for_index_i > 1.0:
+            raise Exception("Each sample should have at most #ground truths (1) TPs")
 
     tp_csum_vector = np.expand_dims(np.cumsum(iou_conf_vector[:, -2]), axis=1)
     fp_csum_vector = np.expand_dims(np.cumsum(iou_conf_vector[:, -1]), axis=1)
@@ -327,16 +345,18 @@ def mean_accuracy_precision(images: npt.NDArray, ground_truths: npt.NDArray,
 if __name__ == "__main__":
 
     X_test, y_test = load_data_pickle("./ear_data/X_test_and_y_test_GRAY.pickle")
-    """
 
     viola_jones = DoubleViolaJones("./weights/haarcascade_mcs_rightear.xml",
-                                "./weights/haarcascade_mcs_leftear.xml")
+                                "./weights/haarcascade_mcs_leftear.xml",
+                                min_neighbour=3)
     predictions = viola_jones.predict(X_test)
+    recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions)
+    plot_precision_recall_curve(recall, precision, figure_title="new_pr_curve_implementation")
 
     """
-
     yolo = YOLO("./weights/yolo5s.pt")
     predictions = yolo.predict(X_test)
 
     recall, precision = precision_recall_curve_fixed_threshold(X_test, y_test, predictions)
     plot_precision_recall_curve(recall, precision)
+    """
